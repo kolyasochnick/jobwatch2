@@ -1,0 +1,10 @@
+[
+  {"_comment": "greenhouse: board = часть после boards.greenhouse.io/", "name": "Пример Greenhouse", "type": "greenhouse", "board": "gitlab", "enabled": false},
+  {"_comment": "lever: board = часть после jobs.lever.co/ (для EU добавьте \"region\": \"eu\")", "name": "Пример Lever", "type": "lever", "board": "spotify", "enabled": false},
+  {"_comment": "workable: account = часть после apply.workable.com/", "name": "Пример Workable", "type": "workable", "account": "example", "enabled": false},
+  {"_comment": "hh.ru: employer_id из адреса hh.ru/employer/<id>; можно добавить \"params\": {\"text\": \"python\"}", "name": "Пример hh.ru", "type": "hh", "employer_id": "1740", "enabled": false},
+  {"_comment": "обычная страница: без селекторов берутся все ссылки и фильтруются по ключевым словам", "name": "Пример HTML (авто)", "type": "html", "url": "https://example.com/careers", "enabled": false},
+  {"_comment": "обычная страница с селекторами и пагинацией ({page} в url)", "name": "Пример HTML (селекторы)", "type": "html", "url": "https://example.com/jobs?page={page}", "max_pages": 5, "item_selector": "li.vacancy", "title_selector": "h3", "link_selector": "a", "location_selector": ".city", "strip_query": true, "enabled": false},
+  {"_comment": "сайт на JS: страницу рендерит браузер", "name": "Пример JS-сайт", "type": "playwright", "url": "https://example.com/careers", "wait_for": "a[href*='/job']", "item_selector": "a[href*='/job']", "load_more_selector": "button.load-more", "load_more_clicks": 5, "scroll": 3, "enabled": false},
+  {"_comment": "любой JSON API", "name": "Пример JSON API", "type": "json", "url": "https://example.com/api/jobs", "items_path": "data.items", "title_field": "title", "url_template": "https://example.com/jobs/{slug}", "location_field": "city", "enabled": false}
+]

@@ -1,0 +1,71 @@
+[
+  {
+    "name": "МТС — Стажировки",
+    "type": "html",
+    "url": "https://job.mts.ru/vacancies?cat=stazhirovki",
+    "item_selector": "a[href*='/vacancy/']",
+    "url_regex": "/vacancy/\\d+",
+    "strip_query": true
+  },
+  {
+    "name": "МТС — Работа в IT",
+    "type": "playwright",
+    "url": "https://job.mts.ru/vacancies?cat=rabota-v-it",
+    "wait_for": "a[href*='/vacancy/']",
+    "item_selector": "a[href*='/vacancy/']",
+    "url_regex": "/vacancy/\\d+",
+    "strip_query": true,
+    "load_more_selector": "text=Загрузить ещё",
+    "load_more_clicks": 8
+  },
+  {
+    "name": "МТС — Аналитика",
+    "type": "playwright",
+    "url": "https://job.mts.ru/vacancies?cat=analitika",
+    "wait_for": "a[href*='/vacancy/']",
+    "item_selector": "a[href*='/vacancy/']",
+    "url_regex": "/vacancy/\\d+",
+    "strip_query": true,
+    "load_more_selector": "text=Загрузить ещё",
+    "load_more_clicks": 4
+  },
+  {
+    "name": "RWB (Habr Карьера)",
+    "type": "html",
+    "url": "https://career.habr.com/companies/rwb/vacancies?page={page}",
+    "max_pages": 8,
+    "item_selector": "a[href*='/vacancies/1000']",
+    "url_regex": "/vacancies/1000\\d+$",
+    "context": "card",
+    "strip_query": true
+  },
+  {
+    "name": "Ozon Tech",
+    "type": "playwright",
+    "url": "https://ozon.tech/vacancies/",
+    "wait_for": "a[href*='/vacancies/']",
+    "item_selector": "a[href*='/vacancies/']",
+    "url_regex": "/vacancies/[0-9a-f]{8}-",
+    "scroll": 40,
+    "strip_query": true
+  },
+  {
+    "name": "Авито",
+    "type": "playwright",
+    "url": "https://career.avito.com/vacancies/",
+    "scroll": 15,
+    "load_more_clicks": 0
+  },
+  {
+    "name": "X5 Group",
+    "type": "playwright",
+    "url": "https://rabota.x5.ru/vacancies",
+    "scroll": 15
+  },
+  {
+    "name": "Магнит Tech",
+    "type": "playwright",
+    "url": "https://magnit.tech/vacancies",
+    "scroll": 15
+  }
+]

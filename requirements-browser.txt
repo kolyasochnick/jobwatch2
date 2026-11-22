@@ -1,0 +1,2 @@
+# Нужен только если в companies.json есть компании с "type": "playwright"
+playwright==1.49.0

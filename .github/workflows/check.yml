@@ -1,0 +1,80 @@
+name: Check vacancies
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"   # каждые 3 часа (время UTC); поменяйте при желании
+  workflow_dispatch:
+    inputs:
+      test_email:
+        description: "Только отправить тестовое письмо"
+        type: boolean
+        default: false
+      debug:
+        description: "Отладка: показать ВСЕ найденные вакансии, ничего не отправлять и не сохранять"
+        type: boolean
+        default: false
+      company:
+        description: "Для отладки: имя одной компании из companies.json (пусто = все)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write   # нужно, чтобы сохранять state/seen.json обратно в репозиторий
+
+concurrency:
+  group: jobwatch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Install browser (только если есть JS-сайты)
+        run: |
+          if grep -Eq '"type": *"playwright"' companies.json; then
+            pip install -r requirements-browser.txt
+            playwright install --with-deps chromium
+          fi
+
+      - name: Run
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          HH_TOKEN: ${{ secrets.HH_TOKEN }}
+          COMPANY: ${{ inputs.company }}
+          TEST_EMAIL: ${{ inputs.test_email }}
+          DEBUG: ${{ inputs.debug }}
+        run: |
+          if [ "$TEST_EMAIL" = "true" ]; then
+            python -m jobwatch --test-email
+          elif [ "$DEBUG" = "true" ]; then
+            python -m jobwatch --dry-run --show-all -v ${COMPANY:+--company "$COMPANY"}
+          else
+            python -m jobwatch
+          fi
+
+      - name: Save state
+        if: always()
+        run: |
+          git config user.name "jobwatch-bot"
+          git config user.email "jobwatch-bot@users.noreply.github.com"
+          git add state/seen.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update state [skip ci]"
+            git pull --rebase --autostash
+            git push
+          fi

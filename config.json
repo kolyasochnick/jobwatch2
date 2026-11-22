@@ -1,0 +1,22 @@
+{
+  "_comment": "Вакансия подходит, если в её заголовке/карточке есть слово из grade.include И слово из direction.include И нет слов из exclude. Слова ищутся как начало слова без учёта регистра (стаж найдёт стажёр/стажировка, ml найдёт ML-инженер, но не html). Пустой список = условие не проверяется.",
+  "grade": {
+    "include": ["intern", "trainee", "junior", "jun", "entry", "стаж", "джун", "младш", "начинающ", "без опыта"],
+    "exclude": ["senior", "sr.", "lead", "principal", "staff", "head of", "руководител", "ведущ", "старш", "тимлид", "начальник", "директор", "архитектор"]
+  },
+  "direction": {
+    "include": [
+      "data scien", "data engineer", "data analy", "data mining", "big data", "dataops", "data lake", "dwh", "etl",
+      "machine learning", "deep learning", "ml", "mlops", "nlp", "llm", "computer vision", "recommender", "ai-", "ai engineer",
+      "датасайент", "дата сайент", "дата-сайент", "дата инженер", "дата-инженер", "аналитик данных", "анализ данных",
+      "специалист по данным", "машинн", "нейро", "нейросет", "искусственн", "ии", "рекомендательн"
+    ],
+    "exclude": []
+  },
+  "exclude_any": [],
+  "locations": [],
+  "on_new_company": "notify",
+  "alert_after_failures": 3,
+  "delay_seconds": 2,
+  "forget_after_days": 90
+}
