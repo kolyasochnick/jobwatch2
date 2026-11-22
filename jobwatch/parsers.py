@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time
 from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
 
 import requests
@@ -141,20 +142,70 @@ def hh(c, s):
     return jobs
 
 
+def _loc_text(v) -> str:
+    if isinstance(v, str):
+        return v.strip()
+    if isinstance(v, dict):
+        return str(v.get("name") or v.get("title") or "")
+    return ""
+
+
+def _json_job(it, c):
+    title = dig(it, c["title_field"])
+    if not title:
+        return None
+    title = str(title).strip()
+    ident = dig(it, c["id_field"]) if c.get("id_field") else None
+    url = dig(it, c["url_field"]) if c.get("url_field") else None
+    if not url and c.get("url_template"):
+        try:
+            url = c["url_template"].format_map(it)
+        except (KeyError, IndexError):
+            url = None
+    text = _short_text(it)
+    for field, word in (c.get("flag_words") or {}).items():  # {"is_internship": "стажировка"}
+        if dig(it, field):
+            text += " " + word
+    loc = _loc_text(dig(it, c["location_field"])) if c.get("location_field") else ""
+    if url:
+        return Job(c["name"], title, normalize_url(urljoin(c["url"], str(url)), c.get("strip_query", False)),
+                   loc, text=text)
+    # ссылки на вакансию нет: ключом служит id, а в письме будет ссылка на общий список (c["link"])
+    key_part = ident if ident not in (None, "") else title
+    return Job(c["name"], title, c.get("link") or c["url"], loc, id=f"{c['url']}#{key_part}", text=text)
+
+
 @register("json")
 def json_api(c, s):
-    r = s.request(c.get("method", "GET"), c["url"], json=c.get("body"), params=c.get("params"),
-                  headers=c.get("headers"), timeout=TIMEOUT)
-    r.raise_for_status()
-    items = dig(r.json(), c.get("items_path", "")) or []
-    jobs = []
-    for it in items:
-        title = dig(it, c["title_field"])
-        url = dig(it, c["url_field"]) if c.get("url_field") else c["url_template"].format_map(it)
-        if title and url:
-            url = urljoin(c["url"], str(url))
-            jobs.append(Job(c["name"], str(title), url, str(dig(it, c.get("location_field", "")) or "")))
-    return jobs
+    """Любой JSON API. paginate: {"param": "page", "start": 1, "max_pages": 10,
+    "pages_path": "pages", "has_more_path": "meta.has_more_pages"} — листать страницы."""
+    pg = c.get("paginate")
+    start = pg.get("start", 1) if pg else 1
+    page, jobs = start, {}
+    for _ in range(pg.get("max_pages", 10) if pg else 1):
+        params = dict(c.get("params") or {})
+        if pg:
+            params[pg.get("param", "page")] = page
+        r = s.request(c.get("method", "GET"), c["url"], json=c.get("body"), params=params or None,
+                      headers=c.get("headers"), timeout=TIMEOUT)
+        r.raise_for_status()
+        data = r.json()
+        items = dig(data, c.get("items_path", "")) or []
+        before = len(jobs)
+        for it in items:
+            j = _json_job(it, c)
+            if j:
+                jobs.setdefault(j.key, j)
+        if not pg or not items or len(jobs) == before:  # пусто или страница ничего нового не дала — конец
+            break
+        total_pages = dig(data, pg["pages_path"]) if pg.get("pages_path") else None
+        if total_pages and page - start + 1 >= int(total_pages):
+            break
+        if pg.get("has_more_path") and not dig(data, pg["has_more_path"]):
+            break
+        page += 1
+        time.sleep(0.5)
+    return list(jobs.values())
 
 
 # ---------------------------------------------------------------- HTML
@@ -373,12 +424,17 @@ def jobs_from_json(captured, c, page_url) -> list[Job]:
 # ---------------------------------------------------------------- Браузер
 @register("playwright")
 def playwright_page(c, s):
-    """Рендерит страницу в браузере. Есть item_selector → разбор DOM. Нет → автопоиск JSON-API сайта,
-    а если и его нет — все ссылки страницы."""
+    """Рендерит страницу в браузере. Есть item_selector → разбор DOM (поддерживает {page} в url и max_pages).
+    Нет → автопоиск JSON-API сайта, а если и его нет — все ссылки страницы."""
     from playwright.sync_api import TimeoutError as PWTimeout
     from playwright.sync_api import sync_playwright
 
     captured: list = []
+    paged = "{page}" in c["url"]
+    start = c.get("page_start", 1)
+    urls = [c["url"].format(page=n) for n in range(start, start + c.get("max_pages", 10))] if paged else [c["url"]]
+    found: dict = {}
+    html, diag = "", "н/д"
 
     def on_response(resp):
         try:
@@ -394,44 +450,50 @@ def playwright_page(c, s):
                                       viewport={"width": 1366, "height": 900})
             page = ctx.new_page()
             page.on("response", on_response)
-            page.goto(c["url"], wait_until="domcontentloaded", timeout=60000)
-            try:
-                if c.get("wait_for"):
-                    page.wait_for_selector(c["wait_for"], timeout=30000)
-                else:
-                    page.wait_for_load_state("networkidle", timeout=30000)
-            except PWTimeout:
-                log.warning("%s: не дождались загрузки, берём что есть", c["name"])
-            for _ in range(c.get("load_more_clicks", 0)):
-                btn = page.query_selector(c["load_more_selector"]) if c.get("load_more_selector") else None
-                if not btn or not btn.is_visible():
-                    break
-                btn.click()
-                page.wait_for_timeout(1500)
-            last, same = -1, 0
-            for _ in range(c.get("scroll", 0)):  # прокручиваем, пока страница растёт
-                page.mouse.wheel(0, 20000)
-                page.wait_for_timeout(c.get("scroll_pause_ms", 1200))
-                h = page.evaluate("document.body.scrollHeight")
-                same = same + 1 if h == last else 0
-                last = h
-                if same >= 2:
-                    break
-            html = page.content()
-            try:  # что именно мы получили — пригодится, если сайт отдал заглушку/капчу
-                diag = f"заголовок={page.title()!r}, текст={page.inner_text('body')[:200]!r}"
-            except Exception:
-                diag = "н/д"
+            for url in urls:
+                page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                try:
+                    if c.get("wait_for"):
+                        page.wait_for_selector(c["wait_for"], timeout=30000)
+                    else:
+                        page.wait_for_load_state("networkidle", timeout=30000)
+                except PWTimeout:
+                    log.warning("%s: не дождались загрузки, берём что есть", c["name"])
+                for _ in range(c.get("load_more_clicks", 0)):
+                    btn = page.query_selector(c["load_more_selector"]) if c.get("load_more_selector") else None
+                    if not btn or not btn.is_visible():
+                        break
+                    btn.click()
+                    page.wait_for_timeout(1500)
+                last, same = -1, 0
+                for _ in range(c.get("scroll", 0)):  # прокручиваем, пока страница растёт
+                    page.mouse.wheel(0, 20000)
+                    page.wait_for_timeout(c.get("scroll_pause_ms", 1200))
+                    h = page.evaluate("document.body.scrollHeight")
+                    same = same + 1 if h == last else 0
+                    last = h
+                    if same >= 2:
+                        break
+                html = page.content()
+                try:  # что именно мы получили — пригодится, если сайт отдал заглушку/капчу
+                    diag = f"заголовок={page.title()!r}, текст={page.inner_text('body')[:200]!r}"
+                except Exception:
+                    diag = "н/д"
+                if c.get("item_selector"):
+                    before = len(found)
+                    for j in extract_from_html(html, c, url):
+                        found.setdefault(j.key, j)
+                    if paged and len(found) == before:  # новая страница ничего не добавила — конец
+                        break
         finally:
             browser.close()
 
-    for u, payload in captured:
+    for u, _payload in captured:
         log.debug("%s: перехвачен JSON %s", c["name"], u)
     if c.get("item_selector"):
-        jobs = extract_from_html(html, c, c["url"])
-        if not jobs:
+        if not found:
             log.warning("%s: по селектору ничего не найдено. Страница: %s", c["name"], diag)
-        return jobs
+        return list(found.values())
     jobs = jobs_from_json(captured, c, c["url"])
     if jobs:
         return jobs

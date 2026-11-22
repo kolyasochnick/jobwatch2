@@ -34,15 +34,18 @@
   },
   {
     "name": "RWB (Habr Карьера)",
-    "type": "html",
+    "type": "playwright",
     "url": "https://career.habr.com/companies/rwb/vacancies?page={page}",
     "max_pages": 8,
+    "wait_for": "a[href*='/vacancies/1000']",
     "item_selector": "a[href*='/vacancies/1000']",
     "url_regex": "/vacancies/1000\\d+$",
     "context": "card",
-    "strip_query": true
+    "strip_query": true,
+    "scroll": 3
   },
   {
+    "_comment": "Ozon блокирует зарубежные адреса (GitHub). Включить после переезда на российский сервер.",
     "name": "Ozon Tech",
     "type": "playwright",
     "url": "https://ozon.tech/vacancies/",
@@ -50,7 +53,15 @@
     "item_selector": "a[href*='/vacancies/']",
     "url_regex": "/vacancies/[0-9a-f]{8}-",
     "scroll": 40,
-    "strip_query": true
+    "strip_query": true,
+    "enabled": false
+  },
+  {
+    "_comment": "Стажировки Авито живут на отдельном сайте; разбор автоматический, проверить debug-запуском",
+    "name": "Авито — Стажировки",
+    "type": "playwright",
+    "url": "https://start.avito.ru/",
+    "scroll": 5
   },
   {
     "name": "Авито — Data Science",
@@ -84,14 +95,40 @@
   },
   {
     "name": "X5 Group",
-    "type": "playwright",
-    "url": "https://rabota.x5.ru/vacancies",
-    "scroll": 15
+    "type": "json",
+    "url": "https://rabota.x5.ru/vacancy/api/v1/public/vacancies",
+    "link": "https://rabota.x5.ru/vacancies",
+    "params": {
+      "page_size": 50
+    },
+    "paginate": {
+      "param": "page",
+      "start": 1,
+      "max_pages": 15,
+      "pages_path": "pages"
+    },
+    "items_path": "items",
+    "title_field": "name",
+    "id_field": "id",
+    "location_field": "city"
   },
   {
     "name": "Магнит Tech",
-    "type": "playwright",
-    "url": "https://magnit.tech/vacancies",
-    "scroll": 15
+    "type": "json",
+    "url": "https://magnit.tech/api/v1/vacancy",
+    "link": "https://magnit.tech/vacancies",
+    "paginate": {
+      "param": "page",
+      "start": 1,
+      "max_pages": 10,
+      "has_more_path": "meta.has_more_pages"
+    },
+    "items_path": "results",
+    "title_field": "title",
+    "id_field": "id",
+    "location_field": "location",
+    "flag_words": {
+      "is_internship": "стажировка"
+    }
   }
 ]
