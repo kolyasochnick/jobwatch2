@@ -168,7 +168,10 @@ def _json_job(it, c):
             text += " " + word
     loc = _loc_text(dig(it, c["location_field"])) if c.get("location_field") else ""
     if url:
-        return Job(c["name"], title, normalize_url(urljoin(c["url"], str(url)), c.get("strip_query", False)),
+        url = str(url)
+        if c.get("url_replace"):  # ["/jobs/", "/vacancy/"] — привести адрес к прежнему виду (ключи в памяти не меняются)
+            url = url.replace(c["url_replace"][0], c["url_replace"][1])
+        return Job(c["name"], title, normalize_url(urljoin(c["url"], url), c.get("strip_query", False)),
                    loc, text=text)
     # ссылки на вакансию нет: ключом служит id, а в письме будет ссылка на общий список (c["link"])
     key_part = ident if ident not in (None, "") else title
@@ -178,7 +181,8 @@ def _json_job(it, c):
 @register("json")
 def json_api(c, s):
     """Любой JSON API. paginate: {"param": "page", "start": 1, "max_pages": 10,
-    "pages_path": "pages", "has_more_path": "meta.has_more_pages"} — листать страницы."""
+    "pages_path": "pages", "has_more_path": "meta.has_more_pages"} — листать страницы;
+    {"mode": "offset", "param": "offset", "start": 0, "total_path": "meta.pagination.total"} — листать смещением."""
     pg = c.get("paginate")
     start = pg.get("start", 1) if pg else 1
     page, jobs = start, {}
@@ -198,12 +202,18 @@ def json_api(c, s):
                 jobs.setdefault(j.key, j)
         if not pg or not items or len(jobs) == before:  # пусто или страница ничего нового не дала — конец
             break
-        total_pages = dig(data, pg["pages_path"]) if pg.get("pages_path") else None
-        if total_pages and page - start + 1 >= int(total_pages):
-            break
-        if pg.get("has_more_path") and not dig(data, pg["has_more_path"]):
-            break
-        page += 1
+        if pg.get("mode") == "offset":  # offset += сколько реально вернулось; total_path — сколько всего
+            page += len(items)
+            total = dig(data, pg["total_path"]) if pg.get("total_path") else None
+            if total is not None and page - start >= int(total):
+                break
+        else:
+            total_pages = dig(data, pg["pages_path"]) if pg.get("pages_path") else None
+            if total_pages and page - start + 1 >= int(total_pages):
+                break
+            if pg.get("has_more_path") and not dig(data, pg["has_more_path"]):
+                break
+            page += 1
         time.sleep(0.5)
     return list(jobs.values())
 
@@ -330,16 +340,21 @@ def _score(items, tk) -> float:
     return len(items) * avg_keys * (2 if tk in STRONG_TITLE_KEYS else 1)
 
 
+_SKIP_KEY = re.compile(r"^(id|uuid)$|[a-z]Id$|_id$|[Ss]lug|[Uu]rl|[Hh]ref|[Rr]evision")
+_RANDOM_ID = re.compile(r"^[a-z0-9]{20,}$")
+
+
 def _short_text(obj, depth=0, out=None) -> str:
-    """Короткие строковые значения карточки (уровень, отдел, теги); длинные описания пропускаем."""
+    """Короткие строковые значения карточки (уровень, отдел, теги); длинные описания, id и slug пропускаем."""
     top = out is None
     out = [] if top else out
     if isinstance(obj, str):
-        if len(obj) <= 80:
+        if len(obj) <= 80 and not _RANDOM_ID.match(obj):
             out.append(obj)
     elif isinstance(obj, dict) and depth < 3:
-        for v in obj.values():
-            _short_text(v, depth + 1, out)
+        for k, v in obj.items():
+            if not _SKIP_KEY.search(str(k)):
+                _short_text(v, depth + 1, out)
     elif isinstance(obj, list) and depth < 3:
         for v in obj[:30]:
             _short_text(v, depth + 1, out)

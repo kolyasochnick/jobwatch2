@@ -1,48 +1,97 @@
 [
   {
     "name": "МТС — Стажировки",
-    "type": "playwright",
-    "url": "https://job.mts.ru/vacancies?cat=stazhirovki",
-    "wait_for": "a[href*='/vacancy/']",
-    "item_selector": "a[href*='/vacancy/']",
-    "url_regex": "/vacancy/\\d+",
-    "strip_query": true,
-    "load_more_selector": "text=Загрузить ещё",
-    "load_more_clicks": 4
+    "type": "json",
+    "url": "https://job.mts.ru/api/v2/catalog/v1/vacancies",
+    "params": {
+      "professionalRole": "v-295855569091182701",
+      "limit": 10
+    },
+    "paginate": {
+      "mode": "offset",
+      "param": "offset",
+      "start": 0,
+      "max_pages": 15,
+      "total_path": "meta.pagination.total"
+    },
+    "items_path": "data",
+    "title_field": "title",
+    "id_field": "id",
+    "url_field": "externalUrl",
+    "url_replace": [
+      "/jobs/",
+      "/vacancy/"
+    ],
+    "location_field": "cities.0.title",
+    "flag_words": {
+      "isInternship": "стажировка"
+    }
   },
   {
     "name": "МТС — Работа в IT",
-    "type": "playwright",
-    "url": "https://job.mts.ru/vacancies?cat=rabota-v-it",
-    "wait_for": "a[href*='/vacancy/']",
-    "item_selector": "a[href*='/vacancy/']",
-    "url_regex": "/vacancy/\\d+",
-    "strip_query": true,
-    "load_more_selector": "text=Загрузить ещё",
-    "load_more_clicks": 8
+    "type": "json",
+    "url": "https://job.mts.ru/api/v2/catalog/v1/vacancies",
+    "params": {
+      "professionalRole": "it-60376693377859705",
+      "limit": 10
+    },
+    "paginate": {
+      "mode": "offset",
+      "param": "offset",
+      "start": 0,
+      "max_pages": 15,
+      "total_path": "meta.pagination.total"
+    },
+    "items_path": "data",
+    "title_field": "title",
+    "id_field": "id",
+    "url_field": "externalUrl",
+    "url_replace": [
+      "/jobs/",
+      "/vacancy/"
+    ],
+    "location_field": "cities.0.title",
+    "flag_words": {
+      "isInternship": "стажировка"
+    }
   },
   {
     "name": "МТС — Аналитика",
-    "type": "playwright",
-    "url": "https://job.mts.ru/vacancies?cat=analitika",
-    "wait_for": "a[href*='/vacancy/']",
-    "item_selector": "a[href*='/vacancy/']",
-    "url_regex": "/vacancy/\\d+",
-    "strip_query": true,
-    "load_more_selector": "text=Загрузить ещё",
-    "load_more_clicks": 4
+    "type": "json",
+    "url": "https://job.mts.ru/api/v2/catalog/v1/vacancies",
+    "params": {
+      "professionalRole": "v-60377545291333713",
+      "limit": 10
+    },
+    "paginate": {
+      "mode": "offset",
+      "param": "offset",
+      "start": 0,
+      "max_pages": 15,
+      "total_path": "meta.pagination.total"
+    },
+    "items_path": "data",
+    "title_field": "title",
+    "id_field": "id",
+    "url_field": "externalUrl",
+    "url_replace": [
+      "/jobs/",
+      "/vacancy/"
+    ],
+    "location_field": "cities.0.title",
+    "flag_words": {
+      "isInternship": "стажировка"
+    }
   },
   {
     "name": "RWB (Habr Карьера)",
-    "type": "playwright",
+    "type": "html",
     "url": "https://career.habr.com/companies/rwb/vacancies?page={page}",
-    "max_pages": 8,
-    "wait_for": "a[href*='/vacancies/1000']",
+    "max_pages": 3,
     "item_selector": "a[href*='/vacancies/1000']",
     "url_regex": "/vacancies/1000\\d+$",
     "context": "card",
-    "strip_query": true,
-    "scroll": 3
+    "strip_query": true
   },
   {
     "_comment": "Ozon блокирует зарубежные адреса (GitHub). Включить после переезда на российский сервер.",
@@ -60,7 +109,7 @@
     "_comment": "Стажировки Авито живут на отдельном сайте; разбор автоматический, проверить debug-запуском",
     "name": "Авито — Стажировки",
     "type": "playwright",
-    "url": "https://start.avito.ru/",
+    "url": "https://start.avito.ru/internships",
     "scroll": 5
   },
   {
