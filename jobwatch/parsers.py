@@ -14,7 +14,8 @@ from .models import Job
 
 log = logging.getLogger("jobwatch.parsers")
 
-UA = "Mozilla/5.0 (compatible; JobWatch/1.0; personal job alert)"
+UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+      "Chrome/130.0.0.0 Safari/537.36")
 TIMEOUT = 30
 PARSERS: dict = {}
 
@@ -352,7 +353,8 @@ def jobs_from_json(captured, c, page_url) -> list[Job]:
         if best:
             p = urlsplit(url)
             key = urlunsplit((p.scheme, p.netloc, p.path, "", ""))
-            g = groups.setdefault(key, {"score": 0.0, "items": [], "tk": best[2]})
+            g = groups.setdefault(key, {"score": 0.0, "items": [], "tk": best[2], "sample": url,
+                                        "keys": list(payload)[:12] if isinstance(payload, dict) else "list"})
             g["score"] += best[0]
             g["items"] += best[1]
     if c.get("api_filter"):
@@ -364,6 +366,7 @@ def jobs_from_json(captured, c, page_url) -> list[Job]:
                   c["name"], k, len(v["items"]), v["tk"], v["score"])
     api, g = max(groups.items(), key=lambda kv: kv[1]["score"])
     log.info("%s: выбран API %s (%d элементов, заголовок в поле '%s')", c["name"], api, len(g["items"]), g["tk"])
+    log.info("%s: пример запроса: %s | ключи ответа: %s", c["name"], g["sample"], g["keys"])
     return _items_to_jobs(g["items"], g["tk"], c, page_url)
 
 
@@ -385,9 +388,10 @@ def playwright_page(c, s):
             pass
 
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(args=["--disable-blink-features=AutomationControlled"])
         try:
-            ctx = browser.new_context(locale=c.get("locale", "ru-RU"), user_agent=c.get("user_agent"))
+            ctx = browser.new_context(locale=c.get("locale", "ru-RU"), user_agent=c.get("user_agent") or UA,
+                                      viewport={"width": 1366, "height": 900})
             page = ctx.new_page()
             page.on("response", on_response)
             page.goto(c["url"], wait_until="domcontentloaded", timeout=60000)
@@ -414,14 +418,23 @@ def playwright_page(c, s):
                 if same >= 2:
                     break
             html = page.content()
+            try:  # что именно мы получили — пригодится, если сайт отдал заглушку/капчу
+                diag = f"заголовок={page.title()!r}, текст={page.inner_text('body')[:200]!r}"
+            except Exception:
+                diag = "н/д"
         finally:
             browser.close()
 
+    for u, payload in captured:
+        log.debug("%s: перехвачен JSON %s", c["name"], u)
     if c.get("item_selector"):
-        return extract_from_html(html, c, c["url"])
+        jobs = extract_from_html(html, c, c["url"])
+        if not jobs:
+            log.warning("%s: по селектору ничего не найдено. Страница: %s", c["name"], diag)
+        return jobs
     jobs = jobs_from_json(captured, c, c["url"])
     if jobs:
         return jobs
-    log.warning("%s: JSON-API со списком вакансий не найден (перехвачено ответов: %d), беру ссылки со страницы",
-                c["name"], len(captured))
+    log.warning("%s: JSON-API со списком вакансий не найден (перехвачено ответов: %d), беру ссылки со страницы. "
+                "Страница: %s", c["name"], len(captured), diag)
     return extract_from_html(html, c, c["url"])

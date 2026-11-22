@@ -1,11 +1,14 @@
 [
   {
     "name": "МТС — Стажировки",
-    "type": "html",
+    "type": "playwright",
     "url": "https://job.mts.ru/vacancies?cat=stazhirovki",
+    "wait_for": "a[href*='/vacancy/']",
     "item_selector": "a[href*='/vacancy/']",
     "url_regex": "/vacancy/\\d+",
-    "strip_query": true
+    "strip_query": true,
+    "load_more_selector": "text=Загрузить ещё",
+    "load_more_clicks": 4
   },
   {
     "name": "МТС — Работа в IT",
@@ -50,11 +53,34 @@
     "strip_query": true
   },
   {
-    "name": "Авито",
+    "name": "Авито — Data Science",
     "type": "playwright",
-    "url": "https://career.avito.com/vacancies/",
-    "scroll": 15,
-    "load_more_clicks": 0
+    "url": "https://career.avito.com/vacancies/data-science/",
+    "item_selector": "a[href*='/vacancies/']",
+    "url_regex": "/vacancies/[a-z0-9-]+/\\d+/?$",
+    "context": "card",
+    "scroll": 10,
+    "strip_query": true
+  },
+  {
+    "name": "Авито — Аналитика данных",
+    "type": "playwright",
+    "url": "https://career.avito.com/vacancies/analitika-dannykh/",
+    "item_selector": "a[href*='/vacancies/']",
+    "url_regex": "/vacancies/[a-z0-9-]+/\\d+/?$",
+    "context": "card",
+    "scroll": 10,
+    "strip_query": true
+  },
+  {
+    "name": "Авито — Разработка",
+    "type": "playwright",
+    "url": "https://career.avito.com/vacancies/razrabotka/",
+    "item_selector": "a[href*='/vacancies/']",
+    "url_regex": "/vacancies/[a-z0-9-]+/\\d+/?$",
+    "context": "card",
+    "scroll": 10,
+    "strip_query": true
   },
   {
     "name": "X5 Group",
